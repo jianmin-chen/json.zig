@@ -7,11 +7,12 @@ const ArrayList = std.ArrayList;
 pub fn stringify(
     allocator: Allocator,
     writer: std.io.AnyWriter,
-    comptime T: type,
+    json: anytype,
     options: struct {}
 ) !void {
     _ = options;
     const arena = ArenaAllocator.init(allocator);
     defer arena.deinit();
+    
 
 }

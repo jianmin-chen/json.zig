@@ -29,7 +29,7 @@ pub fn Typed(comptime T: type) type {
             reader: std.io.AnyReader,
             options: ParseOptions
         ) Error!T {
-            var stream = Stream.from(allocator, reader);
+            var stream = try Stream.from(allocator, reader);
             errdefer stream.cleanup();
             defer stream.deinit();
 

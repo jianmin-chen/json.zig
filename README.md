@@ -1,1 +1,1 @@
-Typed JSON parser. See example in `src/json_test.zig`. Typed options somewhat incomplete currently.
+Typed JSON parser. See example in `src/json_test.zig`. Typed options somewhat limited currently (e.g., enums/unions aren't supported yet).

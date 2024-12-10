@@ -26,7 +26,7 @@ pub fn parse(
     reader: std.io.AnyReader,
     options: ParseOptions
 ) Error!*Value {
-    var stream = Stream.from(allocator, reader);
+    var stream = try Stream.from(allocator, reader);
     errdefer stream.cleanup();
     defer stream.deinit();
 

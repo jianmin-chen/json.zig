@@ -50,24 +50,27 @@ pub const Token = struct {
 };
 
 allocator: Allocator,
-arena: ArenaAllocator,
+arena: *ArenaAllocator,
 reader: AnyReader,
 
 at_end: bool = false,
 
 // Maintain a stack of tokens to allow for peek(), etc.
-token_stack: ArrayList(Token) = undefined,
-character_stack: ArrayList(u8) = undefined,
+token_stack: ArrayList(Token),
+character_stack: ArrayList(u8),
 
-pub fn from(allocator: Allocator, reader: AnyReader) Self {
-    var self = Self{
+pub fn from(allocator: Allocator, reader: AnyReader) Error!Self {
+    var arena = try allocator.create(ArenaAllocator);
+    errdefer allocator.destroy(arena);
+    arena.* = ArenaAllocator.init(allocator);
+    return .{
         .allocator = allocator,
-        .arena = ArenaAllocator.init(allocator),
-        .reader = reader
+        .arena = arena,
+        .reader = reader,
+
+        .token_stack = ArrayList(Token).init(arena.allocator()),
+        .character_stack = ArrayList(u8).init(arena.allocator())
     };
-    self.token_stack = ArrayList(Token).init(self.arena.allocator());
-    self.character_stack = ArrayList(u8).init(self.arena.allocator());
-    return self;
 }
 
 pub fn cleanup(self: *Self) void {
@@ -80,6 +83,7 @@ pub fn cleanup(self: *Self) void {
 
 pub fn deinit(self: *Self) void {
     self.arena.deinit();
+    self.allocator.destroy(self.arena);
 }
 
 fn byte(self: *Self) Error!u8 {
@@ -106,9 +110,8 @@ pub fn nextInStream(self: *Self) Error!u8 {
 
 pub fn peek(self: *Self) Error!Token {
     if (self.token_stack.items.len != 0) return self.token_stack.items[self.token_stack.items.len - 1];
-    const token = try self.next();
-    try self.token_stack.append(token);
-    return token;
+    try self.token_stack.append(try self.next());
+    return self.peek();
 }
 
 pub fn match(self: *Self, kind: TokenType) !bool {
