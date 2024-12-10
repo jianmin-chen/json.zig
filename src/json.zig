@@ -7,4 +7,3 @@ pub const ValueType = value.ValueType;
 pub const Value = value.Value;
 
 pub const Typed = typed.Typed;
-pub const TypedValue = typed.TypedValue;

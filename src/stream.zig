@@ -110,8 +110,9 @@ pub fn nextInStream(self: *Self) Error!u8 {
 
 pub fn peek(self: *Self) Error!Token {
     if (self.token_stack.items.len != 0) return self.token_stack.items[self.token_stack.items.len - 1];
-    try self.token_stack.append(try self.next());
-    return self.peek();
+    const token = try self.next();
+    try self.token_stack.append(token);
+    return token;
 }
 
 pub fn match(self: *Self, kind: TokenType) !bool {

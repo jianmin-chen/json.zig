@@ -15,26 +15,34 @@ pub fn main() !void {
 
     var reader = file.reader();
 
-    // Parsing untyped JSON might look something like this.
-    var parsed = try json.parse(allocator, reader.any(), .{});
-    // Calling `Value.deinit` cleans up the Value that gets returned.
-    // Parsing is done with a ArenaAllocator, which automatically gets
-    // cleaned up when the parsing is done.
-    defer parsed.deinit(allocator);
-    for (parsed.array.items) |pokemon| {
-        const images = pokemon.object.get("images").?;
-        std.debug.print("{s}: {s}\n", .{pokemon.object.get("name").?.string, images.object.get("small").?.string});
-    }
-    std.debug.print("Total number of cards in set: {any}\n", .{parsed.array.items.len});
-
-    // // Parsing typed JSON might look something like this.
-    // const parsed: json.TypedValue = try json.Typed([]Pokemon).parse(allocator, reader.any(), .{});
-    // // Allocation of the original value is left up to the user to handle;
-    // // however, any allocations made by the parser are handled by calling `json.TypedValue.deinit`.
-    // defer parsed.deinit();
-    // for (parsed.value) |pokemon| {
-    //     std.debug.print("{any}\n", .{pokemon});
+    // // Parsing untyped JSON might look something like this.
+    // var parsed = try json.parse(allocator, reader.any(), .{});
+    // // Calling `Value.deinit` cleans up the Value that gets returned.
+    // // Parsing is done with a ArenaAllocator, which automatically gets
+    // // cleaned up when the parsing is done.
+    // defer parsed.deinit(allocator);
+    // for (parsed.array.items) |pokemon| {
+    //     const images = pokemon.object.get("images").?;
+    //     std.debug.print("{s}: {s}\n", .{pokemon.object.get("name").?.string, images.object.get("small").?.string});
     // }
+    // std.debug.print("Total number of cards in set: {any}\n", .{parsed.array.items.len});
+
+    // Parsing typed JSON might look something like this.
+    var typed: json.Typed([]Pokemon) = try json.Typed([]Pokemon).parse(allocator, reader.any(), .{});
+    // Allocation of the original value is left up to the user to handle;
+    // however, any allocations made by the parser are handled by calling `json.TypedValue.deinit`.
+    defer typed.deinit();
+    for (typed.value) |pokemon| {
+        std.debug.print("{s}: {s}\n", .{pokemon.name, pokemon.images.small});
+        for (pokemon.attacks) |attack| {
+            std.debug.print("   {s}\n", .{attack.name});
+        }
+    }
+    std.debug.print("Total number of cards in set: {any}\n", .{typed.value.len});
+
+    const random = std.crypto.random.int(usize) % typed.value.len;
+    const random_pokemon = typed.value[random];
+    std.debug.print("{any}\n", .{random_pokemon});
 }
 
 test "All tests in `tests/test_parsing` pass" {}
@@ -47,7 +55,7 @@ const Ability = struct {
 
 const Attack = struct {
     name: []const u8,
-    cost: []const u8,
+    cost: [][]const u8,
     convertedEnergyCost: usize,
     damage: []const u8,
     text: []const u8
@@ -67,7 +75,7 @@ const Pokemon = struct {
     hp: []const u8,
     types: [][]const u8,
     evolvesFrom: []const u8,
-    evolvesTo: []const u8,
+    evolvesTo: [][]const u8,
     abilities: []Ability,
     attacks: []Attack,
     weaknesses: []Effect,
@@ -101,4 +109,10 @@ const Character = struct {
     bearing_y: f32 = 0,
     advance_x: c_long = 0,
     advance_y: c_long = 0 
+};
+
+const Phone = struct {
+    name: []const u8,
+    age: usize,
+    phones: [][]const u8
 };
