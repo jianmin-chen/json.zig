@@ -13,7 +13,7 @@ pub fn build(b: *Build) !void {
 
     const exe = b.addExecutable(.{
         .name = "test",
-        .root_source_file = b.path("src/test.zig"),
+        .root_source_file = b.path("src/json_test.zig"),
         .target = target,
         .optimize = optimize
     });

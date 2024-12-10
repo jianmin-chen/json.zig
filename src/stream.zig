@@ -9,7 +9,7 @@ const Self = @This();
 
 pub const Error = error{
     UnexpectedEndOfFile, 
-    Unexpectedcacter, 
+    UnexpectedCharacter, 
     UnexpectedToken, 
     EndOfStream
 } || Allocator.Error;
@@ -57,7 +57,7 @@ at_end: bool = false,
 
 // Maintain a stack of tokens to allow for peek(), etc.
 token_stack: ArrayList(Token) = undefined,
-cacter_stack: ArrayList(u8) = undefined,
+character_stack: ArrayList(u8) = undefined,
 
 pub fn from(allocator: Allocator, reader: AnyReader) Self {
     var self = Self{
@@ -66,7 +66,7 @@ pub fn from(allocator: Allocator, reader: AnyReader) Self {
         .reader = reader
     };
     self.token_stack = ArrayList(Token).init(self.arena.allocator());
-    self.cacter_stack = ArrayList(u8).init(self.arena.allocator());
+    self.character_stack = ArrayList(u8).init(self.arena.allocator());
     return self;
 }
 
@@ -98,7 +98,7 @@ pub fn nextInStream(self: *Self) Error!u8 {
     // Advance to next cacter,
     // checking if there's any in the current stack
     // before skipping whitespace and checking if we've reached the end.
-    if (self.cacter_stack.popOrNull()) |c| return c;
+    if (self.character_stack.popOrNull()) |c| return c;
     var c = try self.byte();
     while (isWhitespace(c)) c = try self.byte();
     return c;
@@ -162,14 +162,14 @@ pub fn next(self: *Self) Error!Token {
                         try number.append(number_c);
                     } else {
                         // cacter isn't part of number;
-                        // push to `self.cacter_stack`.
-                        if (!isWhitespace(number_c)) try self.cacter_stack.append(number_c);
+                        // push to `self.character_stack`.
+                        if (!isWhitespace(number_c)) try self.character_stack.append(number_c);
                         break;
                     }
                 }
                 return Token{
                     .kind = .number,
-                    .value = TokenValue{.number = std.fmt.parseFloat(f64, number.items) catch return Error.Unexpectedcacter}
+                    .value = TokenValue{.number = std.fmt.parseFloat(f64, number.items) catch return Error.UnexpectedCharacter}
                 };
             } else if (std.ascii.isAlphabetic(c)) {
                 // Check if it's a boolean or null value.
@@ -178,7 +178,7 @@ pub fn next(self: *Self) Error!Token {
                 while (true) {
                     const kw_c = self.byte() catch break;
                     if (!std.ascii.isAlphabetic(kw_c)) {
-                        if (!isWhitespace(kw_c)) try self.cacter_stack.append(kw_c);
+                        if (!isWhitespace(kw_c)) try self.character_stack.append(kw_c);
                         break;
                     } else try keyword.append(kw_c);
                 }
@@ -189,7 +189,8 @@ pub fn next(self: *Self) Error!Token {
                 } else if (std.mem.eql(u8, keyword.items, "null")) 
                     return Token{.kind = .nil};
             }
+            return Error.UnexpectedCharacter;
         }
     }
-    return Error.Unexpectedcacter;
+    unreachable;
 }

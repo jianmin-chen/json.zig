@@ -1,5 +1,5 @@
 const std = @import("std");
-const Error = @import("error.zig").ParseError;
+const shared = @import("shared.zig");
 const Stream = @import("stream.zig");
 const Value = @import("value.zig").Value;
 
@@ -7,6 +7,9 @@ const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const ArrayList = std.ArrayList;
 const StringHashMap = std.StringHashMap;
+
+const Error = shared.ParseError;
+const ParseOptions = shared.ParseOptions;
 
 const Self = @This();
 
@@ -21,9 +24,7 @@ max_depth: usize,
 pub fn parse(
     allocator: Allocator,
     reader: std.io.AnyReader,
-    options: struct {
-        max_depth: usize = 512,
-    }
+    options: ParseOptions
 ) Error!*Value {
     var stream = Stream.from(allocator, reader);
     errdefer stream.cleanup();
@@ -35,7 +36,7 @@ pub fn parse(
 
 fn incrementDepth(self: *Self, increment: usize) void {
     self.depth += increment;
-    if (self.depth > self.max_depth) std.debug.panic("Max supported depth of {any} reached\n", .{self.max_depth});
+    if (self.depth > self.max_depth) std.debug.panic("Max supported depth of {any} exceeded\n", .{self.max_depth});
 }
 
 fn decrementDepth(self: *Self, decrement: usize) void {
@@ -45,7 +46,7 @@ fn decrementDepth(self: *Self, decrement: usize) void {
 }
 
 // Parse the next Value.
-fn parseValue(self: *Self) Error!*Value {
+pub fn parseValue(self: *Self) Error!*Value {
     const next = try self.stream.advance();
     switch (next.kind) {
         .left_bracket => {
@@ -80,7 +81,7 @@ fn parseValue(self: *Self) Error!*Value {
         .boolean => return try Value.from(self.allocator, next.value.?.boolean),
         .number => return try Value.from(self.allocator, next.value.?.number),
         .string => return try Value.from(self.allocator, next.value.?.string),
-        else => {}
+        else => return Error.UnexpectedToken
     }
-    return try Value.from(self.allocator, null);
+    unreachable;
 }
