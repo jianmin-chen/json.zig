@@ -40,9 +40,10 @@ pub fn main() !void {
     }
     std.debug.print("Total number of cards in set: {any}\n", .{typed.value.len});
 
-    const random = std.crypto.random.int(usize) % typed.value.len;
-    const random_pokemon = typed.value[random];
-    std.debug.print("{any}\n", .{random_pokemon});
+    // Stringifying JSON might look something like this.
+    const write_file = try std.fs.cwd().createFile("test.json", .{});
+    defer write_file.close();
+    try json.stringify(write_file.writer().any(), typed.value, .{});
 }
 
 test "All tests in `tests/test_parsing` pass" {}
@@ -97,22 +98,4 @@ const Pokemon = struct {
         large: []const u8
     },
     rules: [][]const u8
-};
-
-const Character = struct {
-    grapheme: []u8,
-    top: f32 = 0,
-    left: f32 = 0,
-    width: f32 = 0,
-    height: f32 = 0,
-    bearing_x: f32 = 0,
-    bearing_y: f32 = 0,
-    advance_x: c_long = 0,
-    advance_y: c_long = 0 
-};
-
-const Phone = struct {
-    name: []const u8,
-    age: usize,
-    phones: [][]const u8
 };

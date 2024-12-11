@@ -8,7 +8,6 @@ pub fn build(b: *Build) !void {
 
     const json = b.addModule("json", .{
         .root_source_file = b.path("src/json.zig"),
-        .target = target
     });
 
     const exe = b.addExecutable(.{
