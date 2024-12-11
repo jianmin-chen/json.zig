@@ -7,7 +7,7 @@ pub fn build(b: *Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const json = b.addModule("json", .{
-        .root_source_file = b.path("src/json.zig"),
+        .root_source_file = b.path("src/json.zig")
     });
 
     const exe = b.addExecutable(.{
