@@ -3,6 +3,8 @@ const json = @import("json");
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
+const StringHashMap = std.StringHashMap;
+const Timer = std.time.Timer;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -15,38 +17,58 @@ pub fn main() !void {
 
     var reader = file.reader();
 
-    // // Parsing untyped JSON might look something like this.
+    // // Parsing untyped JSON might look somethings like this.
     // var parsed = try json.parse(allocator, reader.any(), .{});
     // // Calling `Value.deinit` cleans up the Value that gets returned.
     // // Parsing is done with a ArenaAllocator, which automatically gets
     // // cleaned up when the parsing is done.
     // defer parsed.deinit(allocator);
     // for (parsed.array.items) |pokemon| {
-    //     const images = pokemon.object.get("images").?;
-    //     std.debug.print("{s}: {s}\n", .{pokemon.object.get("name").?.string, images.object.get("small").?.string});
+    //     const images = pokemon.map.get("images").?;
+    //     std.debug.print("{s}: {s}\n", .{pokemon.map.get("name").?.string, images.map.get("small").?.string});
     // }
-    // std.debug.print("Total number of cards in set: {any}\n", .{parsed.array.items.len});
 
     // Parsing typed JSON might look something like this.
+    var timer = try Timer.start();
     var typed: json.Typed([]Pokemon) = try json.Typed([]Pokemon).parse(allocator, reader.any(), .{});
+    const time = timer.lap();
     // Allocation of the original value is left up to the user to handle;
     // however, any allocations made by the parser are handled by calling `json.TypedValue.deinit`.
     defer typed.deinit();
     for (typed.value) |pokemon| {
         std.debug.print("{s}: {s}\n", .{pokemon.name, pokemon.images.small});
+        if (pokemon.flavorText.len != 0) std.debug.print("   | {s}\n", .{pokemon.flavorText});
         for (pokemon.attacks) |attack| {
             std.debug.print("   {s}\n", .{attack.name});
         }
     }
     std.debug.print("Total number of cards in set: {any}\n", .{typed.value.len});
+    std.debug.print("Approximate time: {any}\n", .{time}); // <- Approx. 1.35 seconds to parse 1MB.
 
-    // Stringifying JSON might look something like this.
-    const write_file = try std.fs.cwd().createFile("test.json", .{});
-    defer write_file.close();
-    try json.stringify(write_file.writer().any(), typed.value, .{});
+    // TODO: Stringifying JSON might look something like this.
+    // const write_file = try std.fs.cwd().createFile("test.json", .{});
+    // defer write_file.close();
+
+    // var characters = StringHashMap(Character).init(allocator);
+    // defer {
+    //     var entries = characters.valueIterator();
+    //     while (entries.next()) |entry| {
+    //         allocator.free(entry.grapheme);
+    //     }
+    //     characters.deinit();
+    // }
+    // try insert(allocator, &characters, 0x1f600);
+
+    // try json.stringify(write_file.writer().any(), characters, .{});
 }
 
-test "All tests in `tests/test_parsing` pass" {}
+fn insert(allocator: Allocator, characters: *StringHashMap(Character), codepoint: u21) !void {
+    const buf = try allocator.alloc(u8, try std.unicode.utf8CodepointSequenceLength(codepoint));
+    _ = try std.unicode.utf8Encode(codepoint, buf);
+    try characters.put(buf, Character{.grapheme = buf});
+}
+
+test "All tests in tests/test_parsing pass" {}
 
 const Ability = struct {
     name: []const u8,
@@ -98,4 +120,16 @@ const Pokemon = struct {
         large: []const u8
     },
     rules: [][]const u8
+};
+
+const Character = struct {
+    grapheme: []u8,
+    top: f32 = 0,
+    left: f32 = 0,
+    width: f32 = 0,
+    height: f32 = 0,
+    bearing_x: f32 = 0,
+    bearing_y: f32 = 0,
+    advance_x: c_long = 0,
+    advance_y: c_long = 0
 };

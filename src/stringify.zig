@@ -8,7 +8,7 @@ pub const FormatOptions = struct {
 
     // Enables whether or not we should use a default formatter 
     // if we can't stringify a value.
-    strict: bool = false,
+    strict: bool = true,
 
     pub fn indent(options: FormatOptions) FormatOptions {
         var shallow_copy = options;
@@ -22,7 +22,8 @@ pub fn stringify(
     json: anytype,
     options: FormatOptions
 ) !void {
-    switch (@typeInfo(@TypeOf(json))) {
+    const BaseType = @TypeOf(json);
+    switch (@typeInfo(BaseType)) {
         .Int, .ComptimeInt, .Float, .ComptimeFloat => try writer.print("{d}", .{json}),
         .Bool => try writer.print("{any}", .{json}),
         .Optional => |optional_info| {

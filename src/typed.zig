@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const ArrayList = std.ArrayList;
 
-const Error = error{MissingField, UnknownField} || shared.ParseError;
+pub const Error = error{MissingField, UnknownField} || shared.ParseError;
 const ParseOptions = shared.ParseOptions;
 
 pub fn Typed(comptime T: type) type {
@@ -47,9 +47,9 @@ pub fn Typed(comptime T: type) type {
             };
             defer parser.arena.deinit();
             errdefer parser.deinit();
-            parser.value = parser.typeValue(T) catch |err| {
-                std.debug.print("{any} {any}\n", .{err, parser.stream.peek()});
-                return err;
+            parser.value = parser.typeValue(T) catch |e| {
+                std.debug.print("{any}\n", .{stream.row});
+                return e;
             };
             return parser;
         }
@@ -58,12 +58,12 @@ pub fn Typed(comptime T: type) type {
             self.value_allocator.deinit();
         }
 
-        fn incrementDepth(self: *Self, increment: usize) void {
+        pub fn incrementDepth(self: *Self, increment: usize) void {
             self.depth += increment;
             if (self.depth > self.max_depth) std.debug.panic("Max supported depth of {any} exceeded\n", .{self.max_depth});
         }
 
-        fn decrementDepth(self: *Self, decrement: usize) void {
+        pub fn decrementDepth(self: *Self, decrement: usize) void {
             const new_depth = @subWithOverflow(self.depth, decrement);
             std.debug.assert(new_depth[1] != 1);
             self.depth = new_depth[0];
@@ -74,6 +74,7 @@ pub fn Typed(comptime T: type) type {
         // We do this by making use of Zig's metaprogramming capabilities and
         // recursively going through T.
         pub fn typeValue(self: *Self, comptime TypedValue: type) Error!TypedValue {
+            // @compileLog(TypedValue);
             const info = @typeInfo(TypedValue);
             switch (info) {
                 .Int, .ComptimeInt => {
@@ -127,6 +128,10 @@ pub fn Typed(comptime T: type) type {
                     }
                 },
                 .Struct => |struct_info| {
+                    // If struct contains custom decl `fromJSON`, use that.
+                    if (@hasDecl(TypedValue, "fromJSON"))
+                        return TypedValue.fromJSON(self);
+
                     // We need to match up keys to their appropriate types in the struct,
                     // and also throw an error for unknown keys or discard them depending on `self.strict`.
                     _ = try self.stream.eat(.left_brace);

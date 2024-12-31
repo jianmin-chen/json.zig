@@ -66,13 +66,13 @@ pub fn parseValue(self: *Self) Error!*Value {
             errdefer value.deinit(self.allocator);
             self.incrementDepth(1);
             while (!try self.stream.match(.right_brace)) {
-                if (value.object.count() != 0) _ = try self.stream.eat(.comma);
+                if (value.map.count() != 0) _ = try self.stream.eat(.comma);
                 const k = try self.stream.eat(.string);
                 errdefer self.allocator.free(k.value.?.string);
                 _ = try self.stream.eat(.colon);
                 const v = try self.parseValue();
                 errdefer v.deinit(self.allocator);
-                try value.object.put(k.value.?.string, v);
+                try value.map.put(k.value.?.string, v);
             }
             _ = try self.stream.eat(.right_brace);
             self.decrementDepth(1);

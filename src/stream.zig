@@ -55,6 +55,8 @@ reader: AnyReader,
 
 at_end: bool = false,
 
+row: usize = 1,
+
 // Maintain a stack of tokens to allow for peek(), etc.
 token_stack: ArrayList(Token),
 character_stack: ArrayList(u8),
@@ -94,17 +96,22 @@ fn byte(self: *Self) Error!u8 {
 }
 
 fn isWhitespace(c: u8) bool {
-    if (c == ' ' or c == '\n' or c == '\t') return true;
+    if (c == ' ' or c == '\n' or c == '\t' or c == '\r') return true;
     return false;
 }
 
 pub fn nextInStream(self: *Self) Error!u8 {
-    // Advance to next cacter,
+    // Advance to next character,
     // checking if there's any in the current stack
     // before skipping whitespace and checking if we've reached the end.
     if (self.character_stack.popOrNull()) |c| return c;
     var c = try self.byte();
-    while (isWhitespace(c)) c = try self.byte();
+    while (isWhitespace(c)) {
+        if (c == '\n') {
+            self.row += 1;
+        }
+        c = try self.byte();
+    }
     return c;
 }
 
@@ -144,12 +151,26 @@ pub fn next(self: *Self) Error!Token {
             // Here, we need to pass ownership so we use
             // `self.allocator` instead of `self.temp_strings`.
             var string = ArrayList(u8).init(self.allocator);
+            var closing_quotes: usize = 1;
             errdefer string.deinit();
             while (true) {
-                const string_c = self.byte() catch return Error.UnexpectedEndOfFile;
-                if (string_c == '"') break;
+                var string_c = self.byte() catch return Error.UnexpectedEndOfFile;
+                if (string_c == '\\') {
+                    // Is it an escaped double quotation mark?
+                    const next_string_c = self.byte() catch return Error.UnexpectedEndOfFile;
+                    if (next_string_c == '"') {
+                        string_c = '"';
+                        if (closing_quotes > 1) {
+                            closing_quotes -= 1;
+                        } else closing_quotes += 1;
+                    }
+                } else if (string_c == '"') {
+                    closing_quotes -= 1;
+                    if (closing_quotes == 0) break;
+                }
                 try string.append(string_c);
             }
+            if (closing_quotes != 0) return Error.UnexpectedCharacter;
             return Token{.kind = .string, .value = TokenValue{.string = try string.toOwnedSlice()}};
         },
         else => {
@@ -159,13 +180,17 @@ pub fn next(self: *Self) Error!Token {
                 while (true) {
                     const number_c = self.byte() catch break;
                     var floating_point: bool = false;
+                    var exponent: bool = false;
                     if (std.ascii.isDigit(number_c)) {
                         try number.append(number_c);
                     } else if (!floating_point and number_c == '.') {
                         floating_point = true;
                         try number.append(number_c);
+                    } else if (!exponent and number_c == 'e') {
+                        exponent = true;
+                        try number.append(number_c);
                     } else {
-                        // cacter isn't part of number;
+                        // Character isn't part of number;
                         // push to `self.character_stack`.
                         if (!isWhitespace(number_c)) try self.character_stack.append(number_c);
                         break;

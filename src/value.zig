@@ -5,12 +5,12 @@ const ArrayList = std.ArrayList;
 const AutoHashMap = std.AutoHashMap;
 const StringHashMap = std.StringHashMap;
 
-pub const ValueType = enum{string, number, object, array, boolean, nil};
+pub const ValueType = enum{string, number, map, array, boolean, nil};
 
 pub const Value = union(ValueType) {
     string: []const u8,
     number: f64,
-    object: StringHashMap(*Value),
+    map: StringHashMap(*Value),
     array: ArrayList(*Value),
     boolean: bool,
     nil: bool,
@@ -22,7 +22,7 @@ pub const Value = union(ValueType) {
         } else if (@TypeOf(raw) == f64) {
             value.* = .{.number = raw};
         } else if (@TypeOf(raw) == StringHashMap(*Value)) {
-            value.* = .{.object = raw};
+            value.* = .{.map = raw};
         } else if (@TypeOf(raw) == ArrayList(*Value)) {
             value.* = .{.array = raw};
         } else if (@TypeOf(raw) == bool) {
@@ -33,16 +33,14 @@ pub const Value = union(ValueType) {
 
     pub fn deinit(self: *Value, allocator: Allocator) void {
         switch (self.*) {
-            .string => |string| {
-                allocator.free(string);
-            },
-            .object => |*object| {
-                var entries = object.iterator();
+            .string => |string| allocator.free(string),
+            .map => |*map| {
+                var entries = map.iterator();
                 while (entries.next()) |entry| {
                     allocator.free(entry.key_ptr.*);
                     entry.value_ptr.*.deinit(allocator);
                 }
-                object.deinit();
+                map.deinit();
             },
             .array => |*array| {
                 for (array.items) |value| value.deinit(allocator);
