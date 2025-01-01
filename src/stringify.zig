@@ -57,6 +57,11 @@ pub fn stringify(
             }
         },
         .Struct => |struct_info| {
+            if (@hasDecl(BaseType, "toJSON")) { 
+                try json.toJSON(writer, options);
+                return;
+            }
+
             _ = try writer.write("{");
             inline for (struct_info.fields, 0..) |field, i| {
                 try writer.print("\"{s}\":", .{field.name});

@@ -45,19 +45,19 @@ pub fn main() !void {
     std.debug.print("Total number of cards in set: {any}\n", .{typed.value.len});
     std.debug.print("Approximate time: {any}\n", .{time}); // <- Approx. 1.35 seconds to parse 1MB.
 
-    // TODO: Stringifying JSON might look something like this.
+    // // Stringifying JSON might look something like this.
     // const write_file = try std.fs.cwd().createFile("test.json", .{});
     // defer write_file.close();
 
-    // var characters = StringHashMap(Character).init(allocator);
+    // var characters = json.HashMap(Character).init(allocator);
     // defer {
-    //     var entries = characters.valueIterator();
+    //     var entries = characters.map.valueIterator();
     //     while (entries.next()) |entry| {
     //         allocator.free(entry.grapheme);
     //     }
     //     characters.deinit();
     // }
-    // try insert(allocator, &characters, 0x1f600);
+    // try insert(allocator, &characters.map, 0x1f600);
 
     // try json.stringify(write_file.writer().any(), characters, .{});
 }
@@ -65,7 +65,7 @@ pub fn main() !void {
 fn insert(allocator: Allocator, characters: *StringHashMap(Character), codepoint: u21) !void {
     const buf = try allocator.alloc(u8, try std.unicode.utf8CodepointSequenceLength(codepoint));
     _ = try std.unicode.utf8Encode(codepoint, buf);
-    try characters.put(buf, Character{.grapheme = buf});
+    try characters.put(buf, Character{.grapheme = buf, .advance_x = 2});
 }
 
 test "All tests in tests/test_parsing pass" {}

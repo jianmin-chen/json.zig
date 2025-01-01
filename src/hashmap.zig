@@ -15,6 +15,30 @@ pub fn HashMap(comptime V: type) type {
 
         const Self = @This();
 
+        pub fn init(allocator: Allocator) Self {
+            return .{.map = StringHashMap(V).init(allocator)};
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.map.deinit();
+        }
+
+        pub fn toJSON(self: *const Self, writer: std.io.AnyWriter, options: serialize.FormatOptions) !void {
+            _ = try writer.write("{");
+            var entries = self.map.iterator();
+
+            var first: bool = true;
+
+            while (entries.next()) |entry| {
+                if (!first) {
+                    _ = try writer.write(",");
+                } else first = false;
+                try writer.print("\"{s}\":", .{entry.key_ptr.*});
+                try serialize.stringify(writer, entry.value_ptr.*, options);
+            }
+            _ = try writer.write("}");
+        }
+
         pub fn fromJSON(parser: *Parser(HashMap(V))) deserialize.Error!Self {
             var self = Self{.map = StringHashMap(V).init(parser.value_allocator.allocator())};
 
