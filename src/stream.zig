@@ -10,6 +10,7 @@ const Self = @This();
 pub const Error = error{
     UnexpectedEndOfFile, 
     UnexpectedCharacter, 
+    UnexpectedEscapeSequence,
     UnexpectedToken, 
     EndOfStream
 } || Allocator.Error;
@@ -156,22 +157,31 @@ pub fn next(self: *Self) Error!Token {
             while (true) {
                 var string_c = self.byte() catch return Error.UnexpectedEndOfFile;
                 if (string_c == '\\') {
-                    // Is it an escaped double quotation mark?
+                    // Do more processing on escape sequences.
                     const next_string_c = self.byte() catch return Error.UnexpectedEndOfFile;
-                    if (next_string_c == '"') {
-                        string_c = '"';
-                        if (closing_quotes > 1) {
-                            closing_quotes -= 1;
-                        } else closing_quotes += 1;
+                    switch (next_string_c) {
+                        '"' => {
+                            string_c = '"';
+                            if (closing_quotes > 1) {
+                                closing_quotes -= 1;
+                            } else closing_quotes += 1;
+                        },
+                        '\\', 'u', 'n' => {
+                            try string.append(string_c);
+                            string_c = next_string_c;
+                        },
+                        'x' => return Error.UnexpectedEscapeSequence,
+                        else => return Error.UnexpectedCharacter,
                     }
                 } else if (string_c == '"') {
                     closing_quotes -= 1;
                     if (closing_quotes == 0) break;
-                }
+                } 
+                else if (std.ascii.isControl(string_c)) return Error.UnexpectedCharacter;
                 try string.append(string_c);
             }
             if (closing_quotes != 0) return Error.UnexpectedCharacter;
-            return Token{.kind = .string, .value = TokenValue{.string = try string.toOwnedSlice()}};
+            return .{.kind = .string, .value = TokenValue{.string = try string.toOwnedSlice()}};
         },
         else => {
             if (std.ascii.isDigit(c)) {

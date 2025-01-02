@@ -17,6 +17,16 @@ pub const FormatOptions = struct {
     }
 };
 
+pub fn escape(writer: std.io.AnyWriter, s: []const u8) !void {
+    for (s) |chr| {
+        if (chr == '\\') {
+            _ = try writer.write("\\\\");
+            continue;
+        }
+        _ = try writer.print("{c}", .{chr});
+    }
+}
+
 pub fn stringify(
     writer: std.io.AnyWriter,
     json: anytype,
@@ -48,7 +58,11 @@ pub fn stringify(
                             if (i != json.len - 1) _ = try writer.write(",");
                         }
                         _ = try writer.write("]");
-                    } else try writer.print("\"{s}\"", .{json});
+                    } else {
+                        _ = try writer.write("\"");
+                        try escape(writer, json);
+                        _ = try writer.write("\"");
+                    }
                 },
                 else => {
                     if (options.strict) std.debug.panic("Unable to serialize {any}\n", .{json});
@@ -64,7 +78,9 @@ pub fn stringify(
 
             _ = try writer.write("{");
             inline for (struct_info.fields, 0..) |field, i| {
-                try writer.print("\"{s}\":", .{field.name});
+                _ = try writer.write("\"");
+                try escape(writer, field.name);
+                _ = try writer.write("\":");
                 try stringify(writer, @field(json, field.name), options);
                 if (i != struct_info.fields.len - 1) _ = try writer.write(",");
             }

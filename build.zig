@@ -10,6 +10,18 @@ pub fn build(b: *Build) !void {
         .root_source_file = b.path("src/json.zig")
     });
 
+    const json_test = b.addTest(.{
+        .root_source_file = b.path("src/json_test.zig"),
+        .target = target,
+        .optimize = optimize
+    });
+
+    json_test.root_module.addImport("json", json);
+
+    const run_test = b.addRunArtifact(json_test);
+    const test_step = b.step("test", "Test parsing");
+    test_step.dependOn(&run_test.step);
+
     const exe = b.addExecutable(.{
         .name = "test",
         .root_source_file = b.path("src/json_test.zig"),
@@ -22,6 +34,6 @@ pub fn build(b: *Build) !void {
     b.installArtifact(exe);
 
     const run_exe = b.addRunArtifact(exe);
-    const run_step = b.step("run", "Test parsing");
-    run_step.dependOn(&run_exe.step);
+    const exe_step = b.step("run", "Parsing example");
+    exe_step.dependOn(&run_exe.step);
 }

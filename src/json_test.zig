@@ -6,16 +6,52 @@ const ArrayList = std.ArrayList;
 const StringHashMap = std.StringHashMap;
 const Timer = std.time.Timer;
 
+test "All tests in test_parsing pass/fail as dictated" {
+    var test_parsing = try std.fs.cwd().openDir("tests/test_parsing", .{});
+    defer test_parsing.close();
+
+    const Option = enum{pass, reject};
+
+    var it = test_parsing.iterate();
+    while (try it.next()) |entry| {
+        const option: Option = if (std.ascii.startsWithIgnoreCase(entry.name, "n")) .reject else .pass;
+
+        const file = try test_parsing.openFile(entry.name, .{});
+        defer file.close();
+
+        var reader = file.reader();
+
+        std.debug.print("{s} should {s}\n", .{entry.name, @tagName(option)});
+
+        var parsed = json.parse(std.testing.allocator, reader.any(), .{}) catch {
+            try std.testing.expect(option == .reject);
+            continue;
+        };
+        defer parsed.deinit(std.testing.allocator);
+        try std.testing.expect(option == .pass);
+    }
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
 
     const allocator = gpa.allocator();
 
-    const file = try std.fs.cwd().openFile("tests/data.json", .{});
+    const file = try std.fs.cwd().openFile("tests/test_parsing/i_string_incomplete_surrogates_escape_valid.json", .{});
     defer file.close();
 
     var reader = file.reader();
+
+    var parsed = try json.parse(allocator, reader.any(), .{});
+    defer parsed.deinit(allocator);
+
+    std.debug.print("{s}", .{parsed.array.items[0].string});
+
+    // const file = try std.fs.cwd().openFile("tests/data.json", .{});
+    // defer file.close();
+
+    // var reader = file.reader();
 
     // // Parsing untyped JSON might look somethings like this.
     // var parsed = try json.parse(allocator, reader.any(), .{});
@@ -28,38 +64,38 @@ pub fn main() !void {
     //     std.debug.print("{s}: {s}\n", .{pokemon.map.get("name").?.string, images.map.get("small").?.string});
     // }
 
-    // Parsing typed JSON might look something like this.
-    var timer = try Timer.start();
-    var typed: json.Typed([]Pokemon) = try json.Typed([]Pokemon).parse(allocator, reader.any(), .{});
-    const time = timer.lap();
-    // Allocation of the original value is left up to the user to handle;
-    // however, any allocations made by the parser are handled by calling `json.TypedValue.deinit`.
-    defer typed.deinit();
-    for (typed.value) |pokemon| {
-        std.debug.print("{s}: {s}\n", .{pokemon.name, pokemon.images.small});
-        if (pokemon.flavorText.len != 0) std.debug.print("   | {s}\n", .{pokemon.flavorText});
-        for (pokemon.attacks) |attack| {
-            std.debug.print("   {s}\n", .{attack.name});
-        }
-    }
-    std.debug.print("Total number of cards in set: {any}\n", .{typed.value.len});
-    std.debug.print("Approximate time: {any}\n", .{time}); // <- Approx. 1.35 seconds to parse 1MB.
-
-    // // Stringifying JSON might look something like this.
-    // const write_file = try std.fs.cwd().createFile("test.json", .{});
-    // defer write_file.close();
-
-    // var characters = json.HashMap(Character).init(allocator);
-    // defer {
-    //     var entries = characters.map.valueIterator();
-    //     while (entries.next()) |entry| {
-    //         allocator.free(entry.grapheme);
+    // // Parsing typed JSON might look something like this.
+    // var timer = try Timer.start();
+    // var typed: json.Typed([]Pokemon) = try json.Typed([]Pokemon).parse(allocator, reader.any(), .{});
+    // const time = timer.lap();
+    // // Allocation of the original value is left up to the user to handle;
+    // // however, any allocations made by the parser are handled by calling `json.TypedValue.deinit`.
+    // defer typed.deinit();
+    // for (typed.value) |pokemon| {
+    //     std.debug.print("{s}: {s}\n", .{pokemon.name, pokemon.images.small});
+    //     if (pokemon.flavorText.len != 0) std.debug.print("   | {s}\n", .{pokemon.flavorText});
+    //     for (pokemon.attacks) |attack| {
+    //         std.debug.print("   {s}\n", .{attack.name});
     //     }
-    //     characters.deinit();
     // }
-    // try insert(allocator, &characters.map, 0x1f600);
+    // std.debug.print("Total number of cards in set: {any}\n", .{typed.value.len});
+    // std.debug.print("Approximate time: {any}\n", .{time}); // <- Approx. 1.35 seconds to parse 1MB.
 
-    // try json.stringify(write_file.writer().any(), characters, .{});
+    // Stringifying JSON might look something like this.
+    const write_file = try std.fs.cwd().createFile("test.json", .{});
+    defer write_file.close();
+
+    var characters = json.HashMap(Character).init(allocator);
+    defer {
+        var entries = characters.map.valueIterator();
+        while (entries.next()) |entry| {
+            allocator.free(entry.grapheme);
+        }
+        characters.deinit();
+    }
+    try insert(allocator, &characters.map, 0x005C);
+
+    try json.stringify(write_file.writer().any(), characters, .{});
 }
 
 fn insert(allocator: Allocator, characters: *StringHashMap(Character), codepoint: u21) !void {
@@ -67,8 +103,6 @@ fn insert(allocator: Allocator, characters: *StringHashMap(Character), codepoint
     _ = try std.unicode.utf8Encode(codepoint, buf);
     try characters.put(buf, Character{.grapheme = buf, .advance_x = 2});
 }
-
-test "All tests in tests/test_parsing pass" {}
 
 const Ability = struct {
     name: []const u8,

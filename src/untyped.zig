@@ -27,8 +27,8 @@ pub fn parse(
     options: ParseOptions
 ) Error!*Value {
     var stream = try Stream.from(allocator, reader);
-    errdefer stream.cleanup();
     defer stream.deinit();
+    errdefer stream.cleanup();
 
     var parser = Self{.allocator = allocator, .stream = &stream, .max_depth = options.max_depth};
     return try parser.parseValue();
@@ -79,6 +79,7 @@ pub fn parseValue(self: *Self) Error!*Value {
             return value;
         },
         .boolean => return try Value.from(self.allocator, next.value.?.boolean),
+        .nil => return try Value.from(self.allocator, null),
         .number => return try Value.from(self.allocator, next.value.?.number),
         .string => return try Value.from(self.allocator, next.value.?.string),
         else => return Error.UnexpectedToken

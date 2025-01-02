@@ -33,7 +33,8 @@ pub fn HashMap(comptime V: type) type {
                 if (!first) {
                     _ = try writer.write(",");
                 } else first = false;
-                try writer.print("\"{s}\":", .{entry.key_ptr.*});
+                try serialize.stringify(writer, entry.key_ptr.*, options);
+                _ = try writer.write(":");
                 try serialize.stringify(writer, entry.value_ptr.*, options);
             }
             _ = try writer.write("}");
