@@ -159,7 +159,8 @@ pub fn next(self: *Self) Error!Token {
                     // Do more processing on escape sequences.
                     const next_string_c = self.byte() catch return Error.UnexpectedEndOfFile;
                     switch (next_string_c) {
-                        '\\', 'u', 'n', '"' => {
+                        '"' => string_c = next_string_c,
+                        '\\', 'u', 'n' => {
                             try string.append(string_c);
                             string_c = next_string_c;
                         },

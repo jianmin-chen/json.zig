@@ -19,7 +19,7 @@ pub const FormatOptions = struct {
 
 pub fn escape(writer: std.io.AnyWriter, s: []const u8) !void {
     const old = [_]u8{'\\', '"'};
-    const replacements = [_][]const u8{"\\\\", "\""};
+    const replacements = [_][]const u8{"\\\\", "\\\""};
     for (s) |chr| {
         var idx: ?usize = null;
         for (old, 0..) |cmp, i| {
