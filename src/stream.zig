@@ -152,7 +152,6 @@ pub fn next(self: *Self) Error!Token {
             // Here, we need to pass ownership so we use
             // `self.allocator` instead of `self.temp_strings`.
             var string = ArrayList(u8).init(self.allocator);
-            var closing_quotes: usize = 1;
             errdefer string.deinit();
             while (true) {
                 var string_c = self.byte() catch return Error.UnexpectedEndOfFile;
@@ -160,27 +159,18 @@ pub fn next(self: *Self) Error!Token {
                     // Do more processing on escape sequences.
                     const next_string_c = self.byte() catch return Error.UnexpectedEndOfFile;
                     switch (next_string_c) {
-                        '"' => {
-                            string_c = '"';
-                            if (closing_quotes > 1) {
-                                closing_quotes -= 1;
-                            } else closing_quotes += 1;
-                        },
-                        '\\', 'u', 'n' => {
+                        '\\', 'u', 'n', '"' => {
                             try string.append(string_c);
                             string_c = next_string_c;
                         },
                         'x' => return Error.UnexpectedEscapeSequence,
                         else => return Error.UnexpectedCharacter,
                     }
-                } else if (string_c == '"') {
-                    closing_quotes -= 1;
-                    if (closing_quotes == 0) break;
-                } 
-                else if (std.ascii.isControl(string_c)) return Error.UnexpectedCharacter;
+                } else if (std.ascii.isControl(string_c)) {
+                    return Error.UnexpectedCharacter;
+                } else if (string_c == '"') break;
                 try string.append(string_c);
             }
-            if (closing_quotes != 0) return Error.UnexpectedCharacter;
             return .{.kind = .string, .value = TokenValue{.string = try string.toOwnedSlice()}};
         },
         else => {
